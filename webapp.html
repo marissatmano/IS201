@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Connect 4 - Player vs Computer</title>
+
+  <body>
+    <nav>
+        <a href="index.html">Resume</a>
+        <a href="scratch.html">Scratch</a>
+    </nav>
+    <br>
+  </body>
+
+  <style>
+
+    nav{
+      background-color: lightskyblue;
+      padding: 10px;
+      overflow: hidden;
+    }
+
+    nav a{
+      color: white;
+      padding: 15px;
+      text-decoration: None;
+      font-weight: bold;
+      font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+    }
+
+    nav a:hover{
+      background-color: lightblue;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 20px;
+      background-color: #f5f5f5;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    #game-board {
+      display: grid;
+      grid-template-columns: repeat(7, 60px);
+      grid-template-rows: repeat(6, 60px);
+      gap: 5px;
+      justify-content: center;
+      margin: 20px auto;
+    }
+
+    #game-board div {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background-color: lightgray;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    #game-board div.disabled {
+      pointer-events: none;
+    }
+
+    .winner {
+      animation: pop-glow 1s infinite alternate;
+    }
+
+    @keyframes pop-glow {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 0 10px 2px white;
+      }
+      100% {
+        transform: scale(1.1);
+        box-shadow: 0 0 15px 4px gold;
+      }
+    }
+
+    button {
+      padding: 10px 20px;
+      margin-top: 15px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    /* Win Banner */
+    #win-banner {
+      position: fixed;
+      top: -100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #222;
+      color: white;
+      padding: 20px 40px;
+      font-size: 24px;
+      border-radius: 10px;
+      z-index: 1000;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      transition: top 0.7s ease-out;
+    }
+
+    #win-banner.show {
+      top: 50px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Connect 4 - Player vs Computer</h1>
+  <div id="game-board"></div>
+  <button id="reset">Reset Game</button>
+
+  <!-- Win Message Banner -->
+  <div id="win-banner"></div>
+
+  <script>
+    const columns = 7;
+    const rows = 6;
+    const board = [];
+    let currentPlayer = "red";
+    let gameOver = false;
+    let winningCells = [];
+
+    function createBoard() {
+      const gameBoard = document.getElementById("game-board");
+      gameBoard.innerHTML = "";
+      for (let row = 0; row < rows; row++) {
+        board[row] = [];
+        for (let col = 0; col < columns; col++) {
+          board[row][col] = null;
+          const cell = document.createElement("div");
+          cell.dataset.row = row;
+          cell.dataset.col = col;
+          cell.addEventListener("click", handlePlayerMove);
+          gameBoard.appendChild(cell);
+        }
+      }
+    }
+
+    function handlePlayerMove(e) {
+      if (gameOver || currentPlayer !== "red") return;
+
+      const col = +e.target.dataset.col;
+      const row = getAvailableRow(col);
+      if (row === -1) return;
+
+      placePiece(row, col, "red");
+
+      if (checkWin(row, col)) {
+        setTimeout(() => endGame("🎉 Player (Red) Wins!"), 100);
+        return;
+      }
+
+      currentPlayer = "yellow";
+      setTimeout(computerMove, 500);
+    }
+
+    function computerMove() {
+      if (gameOver) return;
+
+      let col;
+      let tries = 0;
+      do {
+        col = Math.floor(Math.random() * columns);
+        tries++;
+      } while (getAvailableRow(col) === -1 && tries < 100);
+
+      const row = getAvailableRow(col);
+      if (row === -1) return;
+
+      placePiece(row, col, "yellow");
+
+      if (checkWin(row, col)) {
+        setTimeout(() => endGame("🤖 Computer (Yellow) Wins!"), 100);
+        return;
+      }
+
+      currentPlayer = "red";
+    }
+
+    function getAvailableRow(col) {
+      for (let row = rows - 1; row >= 0; row--) {
+        if (!board[row][col]) return row;
+      }
+      return -1;
+    }
+
+    function placePiece(row, col, color) {
+      board[row][col] = color;
+      const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+      cell.style.backgroundColor = color;
+    }
+
+    function checkWin(row, col) {
+      const directions = [
+        [[0, 1], [0, -1]],
+        [[1, 0], [-1, 0]],
+        [[1, 1], [-1, -1]],
+        [[1, -1], [-1, 1]]
+      ];
+
+      for (let dir of directions) {
+        let count = 1;
+        let cells = [[row, col]];
+
+        for (let [dx, dy] of dir) {
+          let r = row;
+          let c = col;
+          while (true) {
+            r += dx;
+            c += dy;
+            if (
+              r < 0 || r >= rows ||
+              c < 0 || c >= columns ||
+              board[r][c] !== board[row][col]
+            ) break;
+            cells.push([r, c]);
+            count++;
+          }
+        }
+
+        if (count >= 4) {
+          winningCells = cells;
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function endGame(message) {
+      gameOver = true;
+      highlightWin();
+      showWinBanner(message);
+      disableBoard();
+    }
+
+    function highlightWin() {
+      for (const [row, col] of winningCells) {
+        const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+        cell.classList.add("winner");
+      }
+    }
+
+    function disableBoard() {
+      const cells = document.querySelectorAll("#game-board div");
+      cells.forEach(cell => cell.classList.add("disabled"));
+    }
+
+    function resetGame() {
+      gameOver = false;
+      currentPlayer = "red";
+      winningCells = [];
+      const cells = document.querySelectorAll("#game-board div");
+      cells.forEach(cell => {
+        cell.style.backgroundColor = "lightgray";
+        cell.classList.remove("disabled");
+        cell.classList.remove("winner");
+      });
+      hideWinBanner();
+      createBoard();
+    }
+
+    function showWinBanner(message) {
+      const banner = document.getElementById("win-banner");
+      banner.textContent = message;
+      banner.classList.add("show");
+    }
+
+    function hideWinBanner() {
+      const banner = document.getElementById("win-banner");
+      banner.classList.remove("show");
+    }
+
+    // Init
+    createBoard();
+    document.getElementById("reset").addEventListener("click", resetGame);
+  </script>
+
+</body>
+</html>
